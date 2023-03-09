@@ -1,8 +1,8 @@
 /*
- * pm_heap.c / Add Thread Safety
+ * pm_heap.c / Practicum 1
  *
- * Omkar Ubale / CS5600 / Northeastern University
- * Spring 2023 / Feb 27, 2023
+ * Omkar Ubale, Ujwal Gupta / CS5600 / Northeastern University
+ * Spring 2023 / March 9, 2023
  *
  * For documentation, Doxygen commenting has been used for better readability in
  * IDEs like VS Code.
@@ -16,10 +16,9 @@
 #include "pm_heap.h"
 
 char pm_heap[HEAP_SIZE_IN_MEGA_BYTES * PAGE_SIZE * 256];
-int pageUsage[HEAP_SIZE_IN_MEGA_BYTES * 256];
-int pageNext[HEAP_SIZE_IN_MEGA_BYTES * 256];
+void *pageMapping[HEAP_SIZE_IN_MEGA_BYTES * 256];
 
-pthread_mutex_t allocation_mutex;
+pthread_mutex_t heap_access_mutex;
 
 /// @brief Initializes the heap.
 void pm_init()
@@ -27,139 +26,69 @@ void pm_init()
     printf("init started\n");
 
     // initialize mutex for output file
-    if (pthread_mutex_init(&allocation_mutex, NULL) != 0)
+    if (pthread_mutex_init(&heap_access_mutex, NULL) != 0)
     {
         printf("\nERROR: output file mutex init failed\n");
         exit(1);
     }
 
     memset(pm_heap, '0', sizeof(pm_heap));
-    memset(pageUsage, 0, sizeof(pageUsage));
-    memset(pageNext, -1, sizeof(pageNext));
+    memset(pageMapping, NULL, sizeof(pageMapping));
 
     printf("init complete\n\n");
 }
 
-/// @brief Allocates memory and gives the start address of the memory.
-/// @param size the size of memory requested
-/// @return the start address of the memory location allocated.
-void *pm_malloc(int size)
+/// @brief Allocates memory and gives the page number in the virtual page table.
+/// @param size the size of memory requested (cannot be more than 4KB)
+/// @return the page number of the allocated memory in the virtual page table.
+int pm_malloc(int size)
 {
     printf("malloc started for size %d\n", size);
 
     // Mutex acquired for allocating memory in the heap
-    pthread_mutex_lock(&allocation_mutex);
+    pthread_mutex_lock(&heap_access_mutex);
 
-    int sizeRequired = size;
-    int *allocatedMemoryStart = 0;
-    // find available memory location
-    for (int i = 0; i < HEAP_SIZE_IN_MEGA_BYTES * 256; i++)
-    {
-        // we found the first page available in this possible block of contiguous memory
-        if (pageUsage[i] == 0)
-        {
-            // set the start of the memory address of page as the location to return
-            allocatedMemoryStart = pm_heap + (i * PAGE_SIZE);
+    // TODO: check if the pageMapping array has available space (can be done during allocation as well)
+    // TODO: if yes:
+    //      - allocate first page available
+    //      - create Page struct
+    //      - set values in Page struct
+    //      - set value in pageMapping array
+    // TODO: if no:
+    //      - Return not possible (-1)
 
-            // space is needed
-            while (sizeRequired > 0 && i < HEAP_SIZE_IN_MEGA_BYTES * 256)
-            {
-                if (pageUsage[i] == 0)
-                {
-                    // set the start of the block if this is the start of the allocated memory
-                    if (allocatedMemoryStart == 0)
-                    {
-                        allocatedMemoryStart = pm_heap + (i * PAGE_SIZE);
-                    }
-                    // this page is needed
-                    pageUsage[i] = 1;
-                }
-                else
-                {
-                    // reset allocated blocks to de-allocated
-                    int startPageNumber = ((void *)allocatedMemoryStart - (void *)pm_heap) / (PAGE_SIZE);
+    pthread_mutex_unlock(&heap_access_mutex);
 
-                    while (startPageNumber < i)
-                    {
-                        pageUsage[startPageNumber] = 0;
-                        pageNext[startPageNumber] = -1;
-                        startPageNumber++;
-                    }
+    return 0;
+}
 
-                    // Reset the allocation so it can be done when next contiguous block is found
-                    allocatedMemoryStart = 0;
-                    sizeRequired = size;
-                    break;
-                }
+/// @brief Access the variable represented by the page number.
+/// @param pageNumber the page number in the virtual table for the variable.
+/// @return the pointer address for the memory page being accessed.
+void *access(int pageNumber)
+{
+    // TODO: if page is in disk, use page replacement algorithm:
+    //      - remove old page from heap and put it in disk
+    //      - Get needed page from disk and put it back in heap
+    //      - return new memory address of the page requested
+    // TODO: if page is in heap, return page address
 
-                i++;
-
-                // more than this page is needed.
-                if (sizeRequired > PAGE_SIZE)
-                {
-                    sizeRequired -= PAGE_SIZE;
-                    pageNext[i - 1] = i;
-                }
-                // this page is enough.
-                else
-                {
-                    pthread_mutex_unlock(&allocation_mutex);
-
-                    printf("malloc complete inside loop\n\n");
-                    return allocatedMemoryStart;
-                }
-            }
-        }
-    }
-
-    pthread_mutex_unlock(&allocation_mutex);
-
-    printf("malloc complete outside loop\n\n");
-
-    return sizeRequired > 0 ? 0 : allocatedMemoryStart;
+    return NULL;
 }
 
 /// @brief Frees up the memory used by this pointer
 /// @param ptr The pointer for which the memory is to be freed up
-void pm_free(void *ptr)
+void pm_free(int pageNumber)
 {
     printf("free started\n");
 
     // Mutex acquired for allocating memory in the heap
-    pthread_mutex_lock(&allocation_mutex);
+    pthread_mutex_lock(&heap_access_mutex);
 
-    int pageNumber = pm_getPageNumber(ptr);
+    // TODO: destroy Page object in pageMapping array
+    // TODO: set pageMapping value for this pageNumber to NULL
 
-    while (true)
-    {
-        // This is the end of this contiguous block of allocated memory
-        if (pageNext[pageNumber] == -1)
-        {
-            pageUsage[pageNumber] = 0;
-            break;
-        }
-        // There are more pages left in this contiguous block of memory
-        else if (pageNext[pageNumber] != pageNumber + 1)
-        {
-            break;
-        }
-        // marking this page as free
-        pageNext[pageNumber] = -1;
-        pageUsage[pageNumber] = 0;
-
-        pageNumber++;
-    }
-
-    pthread_mutex_unlock(&allocation_mutex);
+    pthread_mutex_unlock(&heap_access_mutex);
 
     printf("free complete\n\n");
-}
-
-/// @brief Gets the page number used in the heap for the given pointer
-/// @param ptr the given pointer
-/// @return the page number in the heap
-int pm_getPageNumber(void *ptr)
-{
-    int *p = ptr;
-    return (((void *)p - (void *)pm_heap) / (PAGE_SIZE));
 }

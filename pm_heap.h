@@ -1,8 +1,8 @@
 /*
- * pm_heap.h / Add Thread Safety
+ * pm_heap.h / Practicum 1
  *
- * Omkar Ubale / CS5600 / Northeastern University
- * Spring 2023 / Feb 27, 2023
+ * Omkar Ubale, Ujwal Gupta / CS5600 / Northeastern University
+ * Spring 2023 / March 9, 2023
  *
  * For documentation, Doxygen commenting has been used for better readability in
  * IDEs like VS Code.
@@ -12,17 +12,21 @@
 // 1 page - 4 KB : 4 * 1024
 #define PAGE_SIZE 4 * 1024
 
-struct PageTableEntry
+#define PAGE_DISK_DIRECTORY "TODO"
+
+struct Page
 {
-    int pageNumber;
-    int size;
-    struct PageTableEntry *next;
+    char *name;
+    char *type;
+    bool inHeap;
+    int pageNumberInHeap;
+    int pageNumberInDisk;
 };
 
 void pm_init();
 
-void *pm_malloc(int size);
+int pm_malloc(int size);
 
-void pm_free(void *ptr);
+void *access(int pageNumber);
 
-int pm_getPageNumber(void *ptr);
+void pm_free(int pageNumber);
