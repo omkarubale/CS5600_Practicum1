@@ -148,8 +148,9 @@ void pm_free(int pageNumber)
     // Mutex acquired for allocating memory in the heap
     pthread_mutex_lock(&heap_access_mutex);
 
-    // TODO: destroy Page object in pageMapping array
-    // TODO: set pageMapping value for this pageNumber to NULL
+    // destroy Page object in pageMapping array
+    free(((t_Page *)pageMapping[pageNumber]));
+    pageMapping[pageNumber] = NULL;
 
     pthread_mutex_unlock(&heap_access_mutex);
 
