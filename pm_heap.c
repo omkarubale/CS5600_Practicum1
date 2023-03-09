@@ -56,6 +56,17 @@ void createPage(int pageNumber, char *name, char *type)
     pageMapping[pageNumber] = (void *)page;
 }
 
+void movePageToDisk(int pageNumber)
+{
+    t_Page *page = ((t_Page *)pageMapping[pageNumber]);
+
+    // TODO: write to file with name as pageNumber
+
+    // set page to in disk
+    page->inHeap = false;
+    page->pageNumberInDisk = pageNumber;
+}
+
 /// @brief Allocates memory and gives the page number in the virtual page table.
 /// @param size the size of memory requested (cannot be more than 4KB)
 /// @return the page number of the allocated memory in the virtual page table.
@@ -117,11 +128,13 @@ int pm_malloc(int size, char *name, char *type)
     // heap is full and pageMapping is not full
 
     // TODO: write oldest page to disk
+    movePageToDisk(oldestPageNumber);
 
     // add the new page to heap and add to pageMapping
     createPage(pageAvailable, name, type);
 
     pthread_mutex_unlock(&heap_access_mutex);
+
     return pageAvailable;
 }
 
