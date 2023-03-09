@@ -14,7 +14,7 @@
 
 #define PAGE_DISK_DIRECTORY "TODO"
 
-struct Page
+typedef struct s_Page
 {
     char *name;
     char *type;
@@ -22,11 +22,11 @@ struct Page
     int pageNumberInHeap;
     int pageNumberInDisk;
     time_t lastAccessed;
-};
+} t_Page;
 
 void pm_init();
 
-int pm_malloc(int size);
+int pm_malloc(int size, char *name, char *type);
 
 void *access(int pageNumber);
 
