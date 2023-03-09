@@ -67,9 +67,9 @@ int pm_malloc(int size)
 /// @return the pointer address for the memory page being accessed.
 void *access(int pageNumber)
 {
-    // TODO: if page is in disk, use page replacement algorithm:
-    //      - remove old page from heap and put it in disk
-    //      - Get needed page from disk and put it back in heap
+    // TODO: if page is in disk, use page replacement algorithm (LRU):
+    //      - remove old page from heap and put it in disk (fwrite)
+    //      - Get needed page from disk and put it back in heap (fopen)
     //      - return new memory address of the page requested
     // TODO: if page is in heap, return page address
 

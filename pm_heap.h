@@ -21,6 +21,7 @@ struct Page
     bool inHeap;
     int pageNumberInHeap;
     int pageNumberInDisk;
+    time_t lastAccessed;
 };
 
 void pm_init();
