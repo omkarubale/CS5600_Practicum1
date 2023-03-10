@@ -6,6 +6,7 @@
  *
  * For documentation, Doxygen commenting has been used for better readability in
  * IDEs like VS Code.
+ * Ujwal
  */
 
 #define HEAP_SIZE_IN_MEGA_BYTES 10
