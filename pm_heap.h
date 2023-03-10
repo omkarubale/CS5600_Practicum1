@@ -6,7 +6,7 @@
  *
  * For documentation, Doxygen commenting has been used for better readability in
  * IDEs like VS Code.
- * Ujwal
+ * Ujwal ahaha
  */
 
 #define HEAP_SIZE_IN_MEGA_BYTES 10
@@ -19,9 +19,10 @@ typedef struct s_Page
 {
     char *name;
     char *type;
+    char* data; // addition by Ujwal
     bool inHeap;
-    int pageNumberInHeap;
-    int pageNumberInDisk;
+    int pageNumberInHeap;// don't think if required
+    int pageNumberInDisk; // don't think if required
     time_t lastAccessed;
 } t_Page;
 

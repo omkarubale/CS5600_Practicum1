@@ -149,7 +149,35 @@ void *access(int pageNumber)
     //      - return new memory address of the page requested
     // TODO: if page is in heap, return page address
 
-    return NULL;
+	pthread_mutex_lock(&heap_access_mutex);
+
+	if (!pageMapping[page_num]->inHeap) {
+
+		//page not in physical memory. Reteriving from disk.
+		void* page_ptr = load_page_disk(pageNumber); // to be implemented
+
+		//find replacement using LRU
+		time_t oldest_last_used = time(NULL);
+		int num_of_pages = sizeof(pageMapping); // Right??
+		for (int i = 0; i < no_of_pages; i++) {
+			if(pageMappping[i]->inHeap && pageMapping[i]->lastAccessed < victim_time) {
+				victim_page = i;
+				oldest_last_used = pageMapping[i]->lastAccessed;
+			}
+		}
+
+		// write the victim page to disk ??
+		write_page_disk(victim_page); // to be implemented
+
+
+		// replacing the victim page with new page
+
+		memcpy(pageMapping[victim_page]->data, page_ptr, PAGE_SiZE);
+		free(page_ptr);
+	}
+	pageMapping[pageNumber]->lastAccessed = time(NULL);
+	pthread_mutex_lock(&heap_access_mutex);
+	return pageMapping[pageNumber]->data;
 }
 
 /// @brief Frees up the memory used by this pointer
