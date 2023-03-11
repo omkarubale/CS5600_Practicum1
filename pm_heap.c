@@ -56,15 +56,39 @@ void createPage(int pageNumber, char *name, char *type)
     pageMapping[pageNumber] = (void *)page;
 }
 
+/// @brief Moves page to disk.
+/// @param pageNumber the virtual page number of the page that has to be moved to disk.
 void movePageToDisk(int pageNumber)
 {
     t_Page *page = ((t_Page *)pageMapping[pageNumber]);
 
-    // TODO: write to file with name as pageNumber
+    FILE *fptr = NULL;
+
+    // write to file with name as pageNumber
+    char output_filname[50];
+    sprintf(output_filname, "%d", pageNumber);
+
+    // build page contents to be moved to disk
+    char pageContents[PAGE_SIZE];
+    int pageStartInHeap = page->pageNumberInHeap * (PAGE_SIZE);
+
+    for (int i = 0; i < (PAGE_SIZE); i++)
+    {
+        pageContents[i] = pm_heap[pageStartInHeap + i];
+    }
+
+    // move page contents to disk
+    fptr = fopen(output_filname, "a+");
+    fputs(pageContents, fptr);
+    fclose(fptr);
 
     // set page to in disk
     page->inHeap = false;
     page->pageNumberInDisk = pageNumber;
+}
+
+void movePageToHeap()
+{
 }
 
 /// @brief Allocates memory and gives the page number in the virtual page table.
@@ -127,7 +151,7 @@ int pm_malloc(int size, char *name, char *type)
 
     // heap is full and pageMapping is not full
 
-    // TODO: write oldest page to disk
+    // write oldest page to disk
     movePageToDisk(oldestPageNumber);
 
     // add the new page to heap and add to pageMapping
@@ -149,35 +173,37 @@ void *access(int pageNumber)
     //      - return new memory address of the page requested
     // TODO: if page is in heap, return page address
 
-	pthread_mutex_lock(&heap_access_mutex);
+    pthread_mutex_lock(&heap_access_mutex);
 
-	if (!pageMapping[page_num]->inHeap) {
+    if (!pageMapping[page_num]->inHeap)
+    {
 
-		//page not in physical memory. Reteriving from disk.
-		void* page_ptr = load_page_disk(pageNumber); // to be implemented
+        // page not in physical memory. Reteriving from disk.
+        void *page_ptr = load_page_disk(pageNumber); // to be implemented
 
-		//find replacement using LRU
-		time_t oldest_last_used = time(NULL);
-		int num_of_pages = sizeof(pageMapping); // Right??
-		for (int i = 0; i < no_of_pages; i++) {
-			if(pageMappping[i]->inHeap && pageMapping[i]->lastAccessed < victim_time) {
-				victim_page = i;
-				oldest_last_used = pageMapping[i]->lastAccessed;
-			}
-		}
+        // find replacement using LRU
+        time_t oldest_last_used = time(NULL);
+        int num_of_pages = sizeof(pageMapping); // Right??
+        for (int i = 0; i < no_of_pages; i++)
+        {
+            if (pageMappping[i]->inHeap && pageMapping[i]->lastAccessed < victim_time)
+            {
+                victim_page = i;
+                oldest_last_used = pageMapping[i]->lastAccessed;
+            }
+        }
 
-		// write the victim page to disk ??
-		write_page_disk(victim_page); // to be implemented
+        // write the victim page to disk ??
+        write_page_disk(victim_page); // to be implemented
 
+        // replacing the victim page with new page
 
-		// replacing the victim page with new page
-
-		memcpy(pageMapping[victim_page]->data, page_ptr, PAGE_SiZE);
-		free(page_ptr);
-	}
-	pageMapping[pageNumber]->lastAccessed = time(NULL);
-	pthread_mutex_lock(&heap_access_mutex);
-	return pageMapping[pageNumber]->data;
+        memcpy(pageMapping[victim_page]->data, page_ptr, PAGE_SiZE);
+        free(page_ptr);
+    }
+    pageMapping[pageNumber]->lastAccessed = time(NULL);
+    pthread_mutex_lock(&heap_access_mutex);
+    return pageMapping[pageNumber]->data;
 }
 
 /// @brief Frees up the memory used by this pointer
