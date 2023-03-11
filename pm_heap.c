@@ -72,13 +72,17 @@ void movePageToDisk(int pageNumber)
     char pageContents[PAGE_SIZE];
     int pageStartInHeap = page->pageNumberInHeap * (PAGE_SIZE);
 
-    for (int i = 0; i < (PAGE_SIZE); i++)
-    {
-        pageContents[i] = pm_heap[pageStartInHeap + i];
-    }
+    memcpy(pageContents, pm_heap + pageStartInHeap, PAGE_SIZE);
 
     // move page contents to disk
     fptr = fopen(output_filname, "w");
+
+    if (fptr == NULL)
+    {
+        printf("\nERROR: file creation failed!\n");
+        exit(1);
+    }
+
     fputs(pageContents, fptr);
     fclose(fptr);
 
@@ -87,8 +91,40 @@ void movePageToDisk(int pageNumber)
     page->pageNumberInDisk = pageNumber;
 }
 
-void movePageToHeap()
+/// @brief Moves the virtual page from disk to heap in the specified page in heap.
+/// @param pageNumber the virtual page being moved from the disk to heap.
+/// @param heapPageAvailable the empty page in the heap where the page can be moved.
+void movePageToHeap(int pageNumber, int heapPageAvailable)
 {
+    t_Page *page = ((t_Page *)pageMapping[pageNumber]);
+
+    FILE *fptr = NULL;
+
+    // write to file with name as pageNumber
+    char input_filname[50];
+    sprintf(input_filname, "%d", pageNumber);
+
+    fptr = fopen(input_filname, "r");
+
+    if (fptr == NULL)
+    {
+        printf("\nERROR: file on disk not found!\n");
+        exit(1);
+    }
+
+    // get contents from disk character by character and place it in heap
+    char ch = fgetc(fptr);
+    int i = heapPageAvailable * (PAGE_SIZE);
+
+    while (ch != EOF)
+    {
+        pm_heap[i] = ch;
+        ch = fgetc(fptr);
+    }
+
+    // set page to in heap
+    page->inHeap = true;
+    page->pageNumberInHeap = heapPageAvailable;
 }
 
 /// @brief Allocates memory and gives the page number in the virtual page table.
@@ -167,43 +203,62 @@ int pm_malloc(int size, char *name, char *type)
 /// @return the pointer address for the memory page being accessed.
 void *access(int pageNumber)
 {
-    // TODO: if page is in disk, use page replacement algorithm (LRU):
-    //      - remove old page from heap and put it in disk (fwrite)
-    //      - Get needed page from disk and put it back in heap (fopen)
-    //      - return new memory address of the page requested
-    // TODO: if page is in heap, return page address
+    // NOTE: page replacement algorithm: Least Recently Used
 
     pthread_mutex_lock(&heap_access_mutex);
 
-    if (!pageMapping[page_num]->inHeap)
+    // get page into heap if it is in disk
+    if (((t_Page *)pageMapping[pageNumber])->inHeap == false)
     {
+        // find oldest page in heap to be moved to disk
+        time_t oldestPageTime = MAX_TIME;
+        int oldestPageNumber = 0;
+        int pageAvailable = -1;
 
-        // page not in physical memory. Reteriving from disk.
-        void *page_ptr = load_page_disk(pageNumber); // to be implemented
-
-        // find replacement using LRU
-        time_t oldest_last_used = time(NULL);
-        int num_of_pages = sizeof(pageMapping); // Right??
-        for (int i = 0; i < no_of_pages; i++)
+        for (int i = 0; i < (2 * HEAP_SIZE_IN_MEGA_BYTES * 256); i++)
         {
-            if (pageMappping[i]->inHeap && pageMapping[i]->lastAccessed < victim_time)
+            // current page is not available in pageMapping
+            if (pageMapping[i] != NULL)
             {
-                victim_page = i;
-                oldest_last_used = pageMapping[i]->lastAccessed;
+                // set oldest page to current page if this page is older than oldest page so far
+                if (difftime(((t_Page *)pageMapping[i])->lastAccessed, oldestPageTime) > 0)
+                {
+                    oldestPageNumber = i;
+                    oldestPageTime = ((t_Page *)pageMapping[i])->lastAccessed;
+                }
+
+                continue;
+            }
+
+            // current page is available in pageMapping (oldest page doesn't need to be moved to disk)
+            if (pageAvailable == -1)
+            {
+                pageAvailable = i;
             }
         }
 
-        // write the victim page to disk ??
-        write_page_disk(victim_page); // to be implemented
+        // if heap is full, create space by moving oldest page to disk
+        if (pageAvailable == -1)
+        {
+            movePageToDisk(oldestPageNumber);
+            pageAvailable = oldestPageNumber;
+        }
 
-        // replacing the victim page with new page
-
-        memcpy(pageMapping[victim_page]->data, page_ptr, PAGE_SiZE);
-        free(page_ptr);
+        // move the page from disk to available page in heap
+        movePageToHeap(pageNumber, pageAvailable);
     }
-    pageMapping[pageNumber]->lastAccessed = time(NULL);
+
+    // set last accessed of the requested page to now
+    time_t t;
+    ((t_Page *)pageMapping[pageNumber])->lastAccessed = time(t);
+
     pthread_mutex_lock(&heap_access_mutex);
-    return pageMapping[pageNumber]->data;
+
+    // return page start address in heap
+    int heapPageNumber = ((t_Page *)pageMapping[pageNumber])->pageNumberInHeap;
+    void *result = pm_heap + (PAGE_SIZE * heapPageNumber);
+
+    return result;
 }
 
 /// @brief Frees up the memory used by this pointer
