@@ -78,7 +78,7 @@ void movePageToDisk(int pageNumber)
     }
 
     // move page contents to disk
-    fptr = fopen(output_filname, "a+");
+    fptr = fopen(output_filname, "w");
     fputs(pageContents, fptr);
     fclose(fptr);
 
