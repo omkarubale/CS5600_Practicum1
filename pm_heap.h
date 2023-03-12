@@ -13,18 +13,15 @@
 // 1 page - 4 KB : 4 * 1024
 #define PAGE_SIZE 4 * 1024
 
-#define PAGE_DISK_DIRECTORY "TODO"
-
-typedef struct s_Page
+typedef struct s_VirtualPageTableEntry
 {
     char *name;
     char *type;
-    char* data; // addition by Ujwal
     bool inHeap;
-    int pageNumberInHeap;// don't think if required
-    int pageNumberInDisk; // don't think if required
+    int pageNumberInHeap;
+    int pageNumberInDisk;
     time_t lastAccessed;
-} t_Page;
+} t_VirtualPageTableEntry;
 
 void pm_init();
 
