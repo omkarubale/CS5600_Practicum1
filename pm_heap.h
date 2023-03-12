@@ -9,6 +9,9 @@
  * Ujwal ahaha
  */
 
+#include <stdbool.h>
+#include <time.h>
+
 #define HEAP_SIZE_IN_MEGA_BYTES 10
 // 1 page - 4 KB : 4 * 1024
 #define PAGE_SIZE 4 * 1024
