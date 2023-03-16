@@ -14,32 +14,29 @@
 #include <pthread.h>
 #include "pm_heap.h"
 
-void test_alloc_access_dealloc(int size, char *name, char *type)
+void test_successive_allocation()
 {
-    // Allocate memory
-    int page_num = pm_malloc(size, name, type);
-    printf("Allocated memory at page number %d\n", page_num);
+    // Test successive allocation
+    pm_malloc(100, "short_string", "char");
+    pm_malloc(400, "medium_string", "char");
+    pm_malloc(1200, "long_string", "char");
+    pm_malloc(sizeof(int), "integer", "int");
 
-    // Access memory
-//    void *ptr = access(page_num);
-//    printf("Accessed memory at page number %d\n", page_num);
+    pm_access(2);
 
-    // Deallocate memory
-    pm_free(page_num);
-    printf("Deallocated memory at page number %d\n", page_num);
+    pm_free(0);
+    pm_free(1);
+    pm_free(2);
+    pm_free(3);
 }
 
 int main(int argc, char **argv)
 {
 
-	// Initialize the heap
-	pm_init();
+    // Initialize the heap
+    pm_init();
 
-	// Test allocation, access, and deallocation of different sizes
-	test_alloc_access_dealloc(100, "short_string", "char");
-	test_alloc_access_dealloc(400, "medium_string", "char");
-	test_alloc_access_dealloc(1200, "long_string", "char");
-	test_alloc_access_dealloc(sizeof(int), "integer", "int");
+    test_successive_allocation();
 
     return 0;
 }

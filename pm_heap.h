@@ -18,20 +18,19 @@
 
 typedef struct s_VirtualPageTableEntry
 {
+    bool isValid;
     char *name;
     char *type;
     bool inHeap;
     int pageNumberInHeap;
     int pageNumberInDisk;
     time_t lastAccessed;
-    struct s_VirtualPageTableEntry *prev;
-    struct s_VirtualPageTableEntry *next;
 } t_VirtualPageTableEntry;
 
 void pm_init();
 
 int pm_malloc(int size, char *name, char *type);
 
-void *access(int pageNumber);
+void *pm_access(int pageNumber);
 
 void pm_free(int pageNumber);
