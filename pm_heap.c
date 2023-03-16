@@ -50,13 +50,13 @@ void pm_init()
 /// @param type the type of the variable for which the memory is being allocated.
 void createPage(int virtualPageNumber, int heapPageNumber, char *name, char *type)
 {
-	printf("Hy11\n");
-	t_VirtualPageTableEntry *page = &virtualPageTable[virtualPageNumber];
-	page->inHeap = true;
-	page->name = name;
-	page->type = type;
-	page->pageNumberInHeap = heapPageNumber;
-	page->lastAccessed = time(NULL);
+    printf("Hy11\n");
+    t_VirtualPageTableEntry *page = &virtualPageTable[virtualPageNumber];
+    page->inHeap = true;
+    page->name = name;
+    page->type = type;
+    page->pageNumberInHeap = heapPageNumber;
+    page->lastAccessed = time(NULL);
 }
 
 /// @brief Moves page to disk.
@@ -150,7 +150,7 @@ int findVacantHeapPage()
 /// @return the page number of the allocated memory in the virtual page table.
 int pm_malloc(int size, char *name, char *type)
 {
-    printf("malloc started for size %d\n", size);
+    printf("MALLOC: malloc started for size %d\n", size);
 
     // Mutex acquired for allocating memory in the heap
     pthread_mutex_lock(&heap_access_mutex);
@@ -161,18 +161,17 @@ int pm_malloc(int size, char *name, char *type)
     int oldestHeapPageNumber = 0;
     int virtualPageAvailable = -1;
 
+    printf("MALLOC: iteration through entire page table started\n");
+
     // iterate through entire virtual page table
     for (int i = 0; i < (2 * HEAP_SIZE_IN_MEGA_BYTES * 256); i++)
     {
-    	printf("Hy20\n");
         // current page is not available in virtualPageTable
         if (virtualPageTable[i] != NULL)
         {
-        	printf("Hy21\n");
             // increment pages count in heap
             if (((t_VirtualPageTableEntry *)virtualPageTable[i])->inHeap == true)
             {
-            	printf("Hy22\n");
                 pagesInHeap++;
 
                 // set oldest page to current page if this page is older than oldest page so far
@@ -194,18 +193,20 @@ int pm_malloc(int size, char *name, char *type)
         }
     }
 
+    printf("MALLOC: iteration through virtual page table complete\n");
+
     // heap is not full
     if (pagesInHeap < (HEAP_SIZE_IN_MEGA_BYTES * 256))
     {
         int vacantHeapPageNumber = findVacantHeapPage();
-        printf("Hy21\n");
+        printf("MALLOC: heap is not full: creating page\n");
         createPage(virtualPageAvailable, vacantHeapPageNumber, name, type);
-        printf("Hy22\n");
+        printf("MALLOC: creation of page complete\n");
         heapUsage[vacantHeapPageNumber] = 1;
 
         pthread_mutex_unlock(&heap_access_mutex);
 
-        printf("malloc ended for heap not full %d\n", size);
+        printf("MALLOC: malloc ended for heap not full %d\n", size);
         return virtualPageAvailable;
     }
 
@@ -215,18 +216,21 @@ int pm_malloc(int size, char *name, char *type)
         return -1;
     }
 
-
     // heap is full and virtualPageTable is not full
 
     // write oldest page to disk
+    printf("MALLOC: writing old page to disk started\n");
     movePageToDisk(oldestVirtualPageNumber);
+    printf("MALLOC: writing old page to disk complete\n");
 
     // add the new page to heap and add to virtualPageTable
+    printf("MALLOC: heap was full, old page moved to disk, creating new page\n");
     createPage(virtualPageAvailable, oldestHeapPageNumber, name, type);
-
-    printf("malloc ended with heap full %d\n", size);
+    printf("MALLOC: creation of page complete after page swap\n");
 
     pthread_mutex_unlock(&heap_access_mutex);
+
+    printf("MALLOC: malloc ended with heap full %d\n", size);
 
     return virtualPageAvailable;
 }
@@ -236,6 +240,8 @@ int pm_malloc(int size, char *name, char *type)
 /// @return the pointer address for the memory page being accessed.
 void *access(int pageNumber)
 {
+    printf("ACCESS: sanity checks started\n");
+
     // sanity checks
     if (pageNumber < 0 || pageNumber > (2 * HEAP_SIZE_IN_MEGA_BYTES * 256))
     {
@@ -248,42 +254,41 @@ void *access(int pageNumber)
         printf("\nERROR: page does not exist!\n");
         exit(1);
     }
-    printf("Hy21\n");
+
+    printf("ACCESS: sanity checks complete\n");
+
     // NOTE: page replacement algorithm: Least Recently Used
 
-    pthread_mutex_lock(&heap_access_mutex);
-    printf("Hy22\n");
     // get page into heap if it is in disk
     if (((t_VirtualPageTableEntry *)virtualPageTable[pageNumber])->inHeap == false)
     {
+        printf("ACCESS: requested page is in disk, need to get it into heap\n");
+        pthread_mutex_lock(&heap_access_mutex);
+
         // find oldest page in heap to be moved to disk
-    	printf("Hy23\n");
         int pagesInHeap = 0;
         time_t oldestPageTime = MAX_TIME;
         int oldestVirtualPageNumber = 0;
         int oldestHeapPageNumber = 0;
         int virtualPageAvailable = -1;
 
+        printf("ACCESS: iteration through virtual page table started\n");
         for (int i = 0; i < (2 * HEAP_SIZE_IN_MEGA_BYTES * 256); i++)
         {
-        	printf("Hy24\n");
             // current page is not available in virtualPageTable
             if (virtualPageTable[i] != NULL)
             {
-            	printf("Hy25\n");
                 // set oldest page to current page if this page is older than oldest page so far
                 if (difftime(((t_VirtualPageTableEntry *)virtualPageTable[i])->lastAccessed, oldestPageTime) > 0)
                 {
-                	printf("Hy26\n");
                     oldestVirtualPageNumber = i;
                     oldestPageTime = ((t_VirtualPageTableEntry *)virtualPageTable[i])->lastAccessed;
                     oldestHeapPageNumber = ((t_VirtualPageTableEntry *)virtualPageTable[i])->pageNumberInHeap;
                 }
-                printf("Hy27\n");
+
                 continue;
             }
 
-            printf("Hy28\n");
             // current page is available in virtualPageTable (oldest page doesn't need to be moved to disk)
             if (virtualPageAvailable == -1)
             {
@@ -291,7 +296,8 @@ void *access(int pageNumber)
             }
         }
 
-        printf("Hy29\n");
+        printf("ACCESS: iteration through virtual page table complete\n");
+
         // if heap is full, create space by moving oldest page to disk
         if (pagesInHeap == (HEAP_SIZE_IN_MEGA_BYTES * 256))
         {
@@ -308,13 +314,13 @@ void *access(int pageNumber)
             // move the page from disk to available page in heap
             movePageToHeap(pageNumber, vacantHeapPageNumber);
         }
+
+        pthread_mutex_unlock(&heap_access_mutex);
     }
 
     // set last accessed of the requested page to now
     time_t t;
     ((t_VirtualPageTableEntry *)virtualPageTable[pageNumber])->lastAccessed = time(t);
-
-    pthread_mutex_lock(&heap_access_mutex);
 
     // return page start address in heap
     int heapPageNumber = ((t_VirtualPageTableEntry *)virtualPageTable[pageNumber])->pageNumberInHeap;
@@ -327,27 +333,20 @@ void *access(int pageNumber)
 /// @param ptr The pointer for which the memory is to be freed up
 void pm_free(int pageNumber)
 {
-    printf("free started\n");
+    printf("FREE: free started\n");
 
     // Mutex acquired for allocating memory in the heap
     pthread_mutex_lock(&heap_access_mutex);
-    printf("Hy31\n");
+
     // destroy Page object in virtualPageTable array
-    //    free(((t_VirtualPageTableEntry *)virtualPageTable[pageNumber]));
-    printf("Hy32\n");
+    printf("FREE: destroy page object\n");
+    free(((t_VirtualPageTableEntry *)virtualPageTable[pageNumber]));
     virtualPageTable[pageNumber] = NULL;
 
     heapUsage[pageNumber] = 0;
-    printf("Hy33\n");
-
-    // Zero out the memory in the heap
-    // Get the page number in heap and mark it as free in the heapUsage array
-	//	int heapPageNumber = ((t_VirtualPageTableEntry *)virtualPageTable[pageNumber])->pageNumberInHeap;
-	//	printf("Hy34\n");
-	//	heapUsage[heapPageNumber] = 0;
-	//    memset(pm_heap + (heapPageNumber * PAGE_SIZE), 0, PAGE_SIZE);
+    printf("FREE: set page to available in virtual page table and pageUsage table\n");
 
     pthread_mutex_unlock(&heap_access_mutex);
 
-    printf("free complete\n\n");
+    printf("FREE: free complete\n\n");
 }
