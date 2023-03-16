@@ -50,13 +50,16 @@ void pm_init()
 /// @param type the type of the variable for which the memory is being allocated.
 void createPage(int virtualPageNumber, int heapPageNumber, char *name, char *type)
 {
-    printf("Hy11\n");
+    printf("CREATE PAGE: create page started\n");
+
     t_VirtualPageTableEntry *page = &virtualPageTable[virtualPageNumber];
     page->inHeap = true;
     page->name = name;
     page->type = type;
     page->pageNumberInHeap = heapPageNumber;
     page->lastAccessed = time(NULL);
+
+    printf("CREATE PAGE: create page complete\n");
 }
 
 /// @brief Moves page to disk.
@@ -301,18 +304,24 @@ void *access(int pageNumber)
         // if heap is full, create space by moving oldest page to disk
         if (pagesInHeap == (HEAP_SIZE_IN_MEGA_BYTES * 256))
         {
+            printf("ACCESS: heap is full, swapping oldest page to disk started\n");
             movePageToDisk(oldestVirtualPageNumber);
             virtualPageAvailable = oldestVirtualPageNumber;
+            printf("ACCESS: heap is full, swapping oldest page to disk complete\n");
 
             // move the page from disk to available page in heap
+            printf("ACCESS: heap is full, moving requested page to heap started\n");
             movePageToHeap(pageNumber, oldestHeapPageNumber);
+            printf("ACCESS: heap is full, moving requested page to heap complete\n");
         }
         // heap is not full, page doesn't need to be moved to disk, but empty space in heap needs to be used
         else
         {
+            printf("ACCESS: heap is not full, moving requested page to heap started\n");
             int vacantHeapPageNumber = findVacantHeapPage();
             // move the page from disk to available page in heap
             movePageToHeap(pageNumber, vacantHeapPageNumber);
+            printf("ACCESS: heap is not full, moving requested page to heap complete\n");
         }
 
         pthread_mutex_unlock(&heap_access_mutex);
@@ -323,8 +332,10 @@ void *access(int pageNumber)
     ((t_VirtualPageTableEntry *)virtualPageTable[pageNumber])->lastAccessed = time(t);
 
     // return page start address in heap
+    printf("ACCESS: building resultant pointer for requested page's start address started\n");
     int heapPageNumber = ((t_VirtualPageTableEntry *)virtualPageTable[pageNumber])->pageNumberInHeap;
     void *result = pm_heap + (PAGE_SIZE * heapPageNumber);
+    printf("ACCESS: building resultant pointer for requested page's start address complete\n");
 
     return result;
 }
