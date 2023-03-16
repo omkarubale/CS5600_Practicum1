@@ -51,12 +51,12 @@ void pm_init()
 void createPage(int virtualPageNumber, int heapPageNumber, char *name, char *type)
 {
     printf("CREATE PAGE: create page started\n");
-
-    t_VirtualPageTableEntry *page = &virtualPageTable[virtualPageNumber];
+    t_VirtualPageTableEntry *page = virtualPageTable[virtualPageNumber];
     page->inHeap = true;
     page->name = name;
     page->type = type;
     page->pageNumberInHeap = heapPageNumber;
+    page->pageNumberInDisk = virtualPageNumber;
     page->lastAccessed = time(NULL);
 
     printf("CREATE PAGE: create page complete\n");
@@ -172,27 +172,34 @@ int pm_malloc(int size, char *name, char *type)
         // current page is not available in virtualPageTable
         if (virtualPageTable[i] != NULL)
         {
+            printf("MALLOC: page %d not available in virtual page table\n", i);
+
             // increment pages count in heap
             if (((t_VirtualPageTableEntry *)virtualPageTable[i])->inHeap == true)
             {
+                printf("MALLOC: incrementing pages found so far\n");
                 pagesInHeap++;
 
                 // set oldest page to current page if this page is older than oldest page so far
                 if (difftime(((t_VirtualPageTableEntry *)virtualPageTable[i])->lastAccessed, oldestPageTime) > 0)
                 {
+                    printf("MALLOC: older page found\n");
+
                     oldestVirtualPageNumber = i;
                     oldestPageTime = ((t_VirtualPageTableEntry *)virtualPageTable[i])->lastAccessed;
                     oldestHeapPageNumber = ((t_VirtualPageTableEntry *)virtualPageTable[i])->pageNumberInHeap;
                 }
             }
-
-            continue;
         }
-
-        // current page is available in virtualPageTable
-        if (virtualPageAvailable == -1)
+        else
         {
-            virtualPageAvailable = i;
+            // current page is available in virtualPageTable
+            // printf("MALLOC: page %d available in virtual page table\n", i);
+            if (virtualPageAvailable == -1)
+            {
+                printf("MALLOC: page %d set as virtual page available\n", i);
+                virtualPageAvailable = i;
+            }
         }
     }
 
@@ -209,7 +216,7 @@ int pm_malloc(int size, char *name, char *type)
 
         pthread_mutex_unlock(&heap_access_mutex);
 
-        printf("MALLOC: malloc ended for heap not full %d\n", size);
+        printf("MALLOC: malloc ended for heap not full %d\n\n", size);
         return virtualPageAvailable;
     }
 
@@ -233,7 +240,7 @@ int pm_malloc(int size, char *name, char *type)
 
     pthread_mutex_unlock(&heap_access_mutex);
 
-    printf("MALLOC: malloc ended with heap full %d\n", size);
+    printf("MALLOC: malloc ended with heap full %d\n\n", size);
 
     return virtualPageAvailable;
 }
@@ -281,9 +288,14 @@ void *access(int pageNumber)
             // current page is not available in virtualPageTable
             if (virtualPageTable[i] != NULL)
             {
+                printf("ACCESS: incrementing pages found so far\n");
+                pagesInHeap++;
+
                 // set oldest page to current page if this page is older than oldest page so far
                 if (difftime(((t_VirtualPageTableEntry *)virtualPageTable[i])->lastAccessed, oldestPageTime) > 0)
                 {
+                    printf("ACCESS: older page found\n");
+
                     oldestVirtualPageNumber = i;
                     oldestPageTime = ((t_VirtualPageTableEntry *)virtualPageTable[i])->lastAccessed;
                     oldestHeapPageNumber = ((t_VirtualPageTableEntry *)virtualPageTable[i])->pageNumberInHeap;
@@ -335,7 +347,7 @@ void *access(int pageNumber)
     printf("ACCESS: building resultant pointer for requested page's start address started\n");
     int heapPageNumber = ((t_VirtualPageTableEntry *)virtualPageTable[pageNumber])->pageNumberInHeap;
     void *result = pm_heap + (PAGE_SIZE * heapPageNumber);
-    printf("ACCESS: building resultant pointer for requested page's start address complete\n");
+    printf("ACCESS: building resultant pointer for requested page's start address complete\n\n");
 
     return result;
 }
@@ -350,12 +362,22 @@ void pm_free(int pageNumber)
     pthread_mutex_lock(&heap_access_mutex);
 
     // destroy Page object in virtualPageTable array
-    printf("FREE: destroy page object\n");
-    free(((t_VirtualPageTableEntry *)virtualPageTable[pageNumber]));
-    virtualPageTable[pageNumber] = NULL;
+    // printf("FREE: destroy page object\n");
+    // t_VirtualPageTableEntry *pageObjectToBeDeleted = ((t_VirtualPageTableEntry *)virtualPageTable[pageNumber]);
+    // free(pageObjectToBeDeleted);
 
-    heapUsage[pageNumber] = 0;
     printf("FREE: set page to available in virtual page table and pageUsage table\n");
+    virtualPageTable[pageNumber] = NULL;
+    heapUsage[pageNumber] = 0;
+
+    if (virtualPageTable[pageNumber] == NULL)
+    {
+        printf("FREE: page successfully marked as NULL\n");
+    }
+    else
+    {
+        printf("We HAVE A PROBLEM\n");
+    }
 
     pthread_mutex_unlock(&heap_access_mutex);
 

@@ -24,6 +24,8 @@ typedef struct s_VirtualPageTableEntry
     int pageNumberInHeap;
     int pageNumberInDisk;
     time_t lastAccessed;
+    struct s_VirtualPageTableEntry *prev;
+    struct s_VirtualPageTableEntry *next;
 } t_VirtualPageTableEntry;
 
 void pm_init();
