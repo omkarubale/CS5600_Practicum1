@@ -16,18 +16,26 @@
 
 void test_successive_allocation()
 {
+    printf("TESTING: test started.\n");
     // Test successive allocation
-    pm_malloc(100, "short_string", "char");
-    pm_malloc(400, "medium_string", "char");
-    pm_malloc(1200, "long_string", "char");
-    pm_malloc(sizeof(int), "integer", "int");
+    int a = pm_malloc(100, "short_string", "char");
+    int b = pm_malloc(400, "medium_string", "char");
+    int c = pm_malloc(1200, "long_string", "char");
+    int d = pm_malloc(sizeof(int), "integer", "int");
 
-    pm_access(2);
+    printf("\n\n*** TESTING: pages requested: %d %d %d %d\n", a, b, c, d);
+
+    void *t = pm_access(c);
+
+    printf("\n\n*** TESTING: access for page %d requested\n", c);
 
     pm_free(0);
     pm_free(1);
     pm_free(2);
     pm_free(3);
+
+    printf("\n\n*** TESTING: pages freed: %d %d %d %d\n", a, b, c, d);
+    printf("TESTING: test complete.\n");
 }
 
 int main(int argc, char **argv)

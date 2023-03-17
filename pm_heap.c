@@ -59,7 +59,9 @@ void createPage(int virtualPageNumber, int heapPageNumber, char *name, char *typ
     page->type = type;
     page->pageNumberInHeap = heapPageNumber;
     page->pageNumberInDisk = virtualPageNumber;
-    page->lastAccessed = time(NULL);
+    time_t t = time(0);
+
+    page->lastAccessed = t;
 
     printf("CREATE PAGE: create page complete\n");
     printf("PAGE: name: %s type: %s pageNumberInHeap: %d pageNumberInDisk: %d\n", page->name, page->type, page->pageNumberInHeap, page->pageNumberInDisk);
@@ -344,9 +346,10 @@ void *pm_access(int pageNumber)
         pthread_mutex_unlock(&heap_access_mutex);
     }
 
+    printf("ACCESS: page ready.\n");
     // set last accessed of the requested page to now
-    time_t t;
-    virtualPageTable[pageNumber].lastAccessed = time(t);
+    time_t t = time(0);
+    virtualPageTable[pageNumber].lastAccessed = t;
 
     // return page start address in heap
     printf("ACCESS: building resultant pointer for requested page's start address started\n");
