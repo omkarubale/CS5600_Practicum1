@@ -51,18 +51,18 @@ void pm_init()
 void createPage(int virtualPageNumber, int heapPageNumber, char *name, char *type)
 {
     printf("CREATE PAGE: create page started\n");
-    t_VirtualPageTableEntry page = virtualPageTable[virtualPageNumber];
+    t_VirtualPageTableEntry *page = &(virtualPageTable[virtualPageNumber]);
 
-    page.isValid = true;
-    page.inHeap = true;
-    page.name = name;
-    page.type = type;
-    page.pageNumberInHeap = heapPageNumber;
-    page.pageNumberInDisk = virtualPageNumber;
-    page.lastAccessed = time(NULL);
+    page->isValid = true;
+    page->inHeap = true;
+    page->name = name;
+    page->type = type;
+    page->pageNumberInHeap = heapPageNumber;
+    page->pageNumberInDisk = virtualPageNumber;
+    page->lastAccessed = time(NULL);
 
     printf("CREATE PAGE: create page complete\n");
-    printf("PAGE: name: %s type: %s pageNumberInHeap: %d pageNumberInDisk: %d\n", page.name, page.type, page.pageNumberInHeap, page.pageNumberInDisk);
+    printf("PAGE: name: %s type: %s pageNumberInHeap: %d pageNumberInDisk: %d\n", page->name, page->type, page->pageNumberInHeap, page->pageNumberInDisk);
 }
 
 /// @brief Moves page to disk.
@@ -172,6 +172,7 @@ int pm_malloc(int size, char *name, char *type)
     // iterate through entire virtual page table
     for (int i = 0; i < (2 * HEAP_SIZE_IN_MEGA_BYTES * 256); i++)
     {
+        // printf("MALLOC: iteration: %d\n", i);
         // current page is not available in virtualPageTable
         if (virtualPageTable[i].isValid)
         {
@@ -198,9 +199,9 @@ int pm_malloc(int size, char *name, char *type)
         else
         {
             // printf("MALLOC: page %d available in virtual page table\n", i);
+
             if (virtualPageAvailable == -1)
             {
-                // TODO: figure out why this is always the first page, it should set 1,2,3 instead of 0,0,0
                 printf("MALLOC: page %d set as virtual page available\n", i);
                 virtualPageAvailable = i;
             }
