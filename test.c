@@ -14,22 +14,6 @@
 #include <pthread.h>
 #include "pm_heap.h"
 
-void test_successive_allocation()
-{
-    // Test successive allocation
-    pm_malloc(100, "short_string", "char");
-    pm_malloc(400, "medium_string", "char");
-    pm_malloc(1200, "long_string", "char");
-    pm_malloc(sizeof(int), "integer", "int");
-
-    pm_access(2);
-
-    pm_free(0);
-    pm_free(1);
-    pm_free(2);
-    pm_free(3);
-}
-
 int main(int argc, char **argv)
 {
 

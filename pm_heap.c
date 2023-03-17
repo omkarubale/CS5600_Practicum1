@@ -345,8 +345,8 @@ void *pm_access(int pageNumber)
     }
 
     // set last accessed of the requested page to now
-    time_t t;
-    virtualPageTable[pageNumber].lastAccessed = time(t);
+    time_t t = time(0);
+    virtualPageTable[pageNumber].lastAccessed = t;
 
     // return page start address in heap
     printf("ACCESS: building resultant pointer for requested page's start address started\n");
