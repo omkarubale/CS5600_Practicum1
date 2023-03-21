@@ -46,6 +46,13 @@ void pm_init()
     printf("init complete\n\n");
 }
 
+void pm_files_cleanup()
+{
+    printf("\nCLEANUP: removing pages temp files created.\n");
+    system("exec rm -r ./pages/*");
+    printf("CLEANUP: cleanup complete.\n");
+}
+
 /// @brief Creates the virtual page table entry and adds the page in the heap
 /// @param virtualPageNumber The virtual page number of the page that is being created.
 /// @param heapPageNumber The heap page number of the page that is being created.

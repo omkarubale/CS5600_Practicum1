@@ -101,7 +101,6 @@ void test_out_of_memory_pages()
     printf("TESTING: mallocing a page after entire virtual page has been emptied:\n");
     int r = pm_malloc(1000, "ptr", "char");
 
-    printf("DEBUG: %d\n", r);
     assert(r == 0);
     printf("\nTest Complete: Out of virtual pages complete.\n\n");
 }
@@ -170,6 +169,8 @@ int main(int argc, char **argv)
 
     pm_init();
     test_out_of_memory_pages();
+
+    pm_files_cleanup();
 
     return 0;
 }

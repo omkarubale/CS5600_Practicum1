@@ -29,6 +29,8 @@ typedef struct s_VirtualPageTableEntry
 
 void pm_init();
 
+void pm_files_cleanup();
+
 int pm_malloc(int size, char *name, char *type);
 
 void *pm_access(int pageNumber);
