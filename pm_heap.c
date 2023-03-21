@@ -160,6 +160,12 @@ int pm_malloc(int size, char *name, char *type)
 {
     printf("MALLOC: malloc started for size %d\n", size);
 
+    if (size > PAGE_SIZE)
+    {
+        printf("\nERROR: malloc not allowed for size greater than page size.\n");
+        exit(1);
+    }
+
     // Mutex acquired for allocating memory in the heap
     pthread_mutex_lock(&heap_access_mutex);
 
@@ -270,7 +276,7 @@ void *pm_access(int pageNumber)
     {
         printf("\nERROR: page does not exist!\n");
         return NULL;
-        //exit(1);
+        // exit(1);
     }
 
     printf("ACCESS: sanity checks complete\n");
