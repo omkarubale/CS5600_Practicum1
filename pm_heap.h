@@ -10,7 +10,7 @@
  */
 
 #include <stdbool.h>
-#include <time.h>
+#include <sys/time.h>
 
 #define HEAP_SIZE_IN_MEGA_BYTES 10
 // 1 page - 4 KB : 4 * 1024
@@ -24,7 +24,7 @@ typedef struct s_VirtualPageTableEntry
     bool inHeap;
     int pageNumberInHeap;
     int pageNumberInDisk;
-    time_t lastAccessed;
+    struct timeval lastAccessed;
 } t_VirtualPageTableEntry;
 
 void pm_init();

@@ -39,53 +39,71 @@ void test_successive_allocation()
     printf("TESTING: test complete.\n");
 }
 
-void test_write_read() {
+void test_write_read()
+{
 
-	// Allocate memory for a string and store it in the heap
-	char *str_ptr = (char *) pm_access(pm_malloc(sizeof(char) * 10, "my_str", "string"));
-	strcpy(str_ptr, "hello");
+    // Allocate memory for a string and store it in the heap
+    char *str_ptr = (char *)pm_access(pm_malloc(sizeof(char) * 10, "my_str", "string"));
+    strcpy(str_ptr, "hello");
 
-	// Check if we can access the memory we just allocated
-	assert(strcmp(str_ptr, "hello") == 0);
+    // Check if we can access the memory we just allocated
+    assert(strcmp(str_ptr, "hello") == 0);
 
-	printf("\n\n***Test Complete: Data written to allocated space validated");
+    printf("\n\n***Test Complete: Data written to allocated space validated");
 }
 
-void test_access_invalid() {
-	int a = pm_malloc(100, "some_string", "char");
+void test_access_invalid()
+{
+    int a = pm_malloc(100, "some_string", "char");
 
-	void* space = (char *)pm_access(a);
+    void *space = (char *)pm_access(a);
 
-	pm_free(a);
+    pm_free(a);
 
-	bool error_occurred = false;
-	// attempt to access a page that's no longer in the heap
-	if ((void *)pm_access(a) == NULL)
-	{
-		error_occurred = true;
-	}
-	assert(error_occurred);
-	printf("\nTest Complete: Trying to access an invalid allocation.\n\n");
+    bool error_occurred = false;
+    // attempt to access a page that's no longer in the heap
+    if ((void *)pm_access(a) == NULL)
+    {
+        error_occurred = true;
+    }
+    assert(error_occurred);
+    printf("\nTest Complete: Trying to access an invalid allocation.\n\n");
 }
 
-void test_out_of_memory()
+void test_out_of_memory_pages()
 {
     // Test out of memory error
-    int ptrs[100];
+    int ptrs[(2 * HEAP_SIZE_IN_MEGA_BYTES * 256) + 1];
 
     int i;
-    for ( i = 0; i < 100; i++) {
-        ptrs[i] = pm_malloc(10000, "ptr", "char");
-        if (ptrs[i] == -1) {
-            printf("Out of memory error at allocation %d\n", i);
+    bool error_occurred = false;
+
+    for (i = 0; i < (2 * HEAP_SIZE_IN_MEGA_BYTES * 256) + 1; i++)
+    {
+        ptrs[i] = pm_malloc(1000, "ptr", "char");
+        if (ptrs[i] == -1)
+        {
+            printf("TESTING: Out of memory error at allocation %d\n", i);
+            error_occurred = true;
             break;
         }
     }
 
-    for (int j = 0; j < i; j++) {
+    assert(error_occurred);
+
+    printf("TESTING: pages allocated so far: %d\n", i);
+
+    for (int j = 0; j < i; j++)
+    {
         pm_free(ptrs[j]);
     }
-    // I think malloc needs a check such that requested allocation do not exceed the page size
+
+    printf("TESTING: mallocing a page after entire virtual page has been emptied:\n");
+    int r = pm_malloc(1000, "ptr", "char");
+
+    printf("DEBUG: %d\n", r);
+    assert(r == 0);
+    printf("\nTest Complete: Out of virtual pages complete.\n\n");
 }
 
 void *thread_routine(void *arg)
@@ -100,6 +118,15 @@ void *thread_routine(void *arg)
     pm_free(id);
 
     return NULL;
+}
+
+void test_request_greater_than_page_size()
+{
+    int p = pm_malloc(10000, "ptr", "char");
+
+    assert(p == -1);
+
+    printf("Test Complete: Memory request greater than page size successful.\n");
 }
 
 void test_thread_safety()
@@ -125,17 +152,24 @@ void test_thread_safety()
 
 int main(int argc, char **argv)
 {
-
-    // Initialize the heap
+    // tests for different possible scenarios
     pm_init();
-
-    //tests for different possible scenarios
-    test_out_of_memory();
     test_successive_allocation();
+
+    pm_init();
     test_write_read();
+
+    pm_init();
     test_access_invalid();
+
+    pm_init();
     test_thread_safety();
 
+    pm_init();
+    test_request_greater_than_page_size();
+
+    pm_init();
+    test_out_of_memory_pages();
 
     return 0;
 }

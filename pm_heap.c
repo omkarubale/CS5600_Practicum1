@@ -14,13 +14,16 @@
 #include <string.h>
 #include <pthread.h>
 #include <time.h>
+#include <errno.h>
+#include <limits.h>
 #include "pm_heap.h"
 
 char pm_heap[HEAP_SIZE_IN_MEGA_BYTES * PAGE_SIZE * 256];
 int heapUsage[HEAP_SIZE_IN_MEGA_BYTES * 256];
 t_VirtualPageTableEntry virtualPageTable[2 * HEAP_SIZE_IN_MEGA_BYTES * 256];
 
-#define MAX_TIME 67767976233521999;
+#define MAX_TIME_TV_SEC 67767976233521999;
+#define MAX_TIME_TV_USEC 9223372036854775807;
 
 pthread_mutex_t heap_access_mutex;
 
@@ -59,7 +62,8 @@ void createPage(int virtualPageNumber, int heapPageNumber, char *name, char *typ
     page->type = type;
     page->pageNumberInHeap = heapPageNumber;
     page->pageNumberInDisk = virtualPageNumber;
-    time_t t = time(0);
+    struct timeval t;
+    gettimeofday(&t, NULL);
 
     page->lastAccessed = t;
 
@@ -71,26 +75,29 @@ void createPage(int virtualPageNumber, int heapPageNumber, char *name, char *typ
 /// @param virtualPageNumber the virtual page number of the page that has to be moved to disk.
 void movePageToDisk(int virtualPageNumber)
 {
-    t_VirtualPageTableEntry page = virtualPageTable[virtualPageNumber];
+    t_VirtualPageTableEntry *page = &(virtualPageTable[virtualPageNumber]);
 
     FILE *fptr = NULL;
 
     // write to file with name as virtualPageNumber
     char output_filname[50];
-    sprintf(output_filname, "./pages/%d", virtualPageNumber);
+    sprintf(output_filname, "./pages/%d.txt", virtualPageNumber);
 
     // build page contents to be moved to disk
     char pageContents[PAGE_SIZE];
-    int pageStartInHeap = page.pageNumberInHeap * (PAGE_SIZE);
+    int pageStartInHeap = page->pageNumberInHeap * (PAGE_SIZE);
 
     memcpy(pageContents, pm_heap + pageStartInHeap, PAGE_SIZE);
 
     // move page contents to disk
     fptr = fopen(output_filname, "w");
 
+    printf("MOVE: movePageToDisk: vpageNumber= %d, filename: %s\n", virtualPageNumber, output_filname);
+
     if (fptr == NULL)
     {
         printf("\nERROR: file creation failed!\n");
+        printf("Error : errno='%s'.\n", strerror(errno));
         exit(1);
     }
 
@@ -98,8 +105,8 @@ void movePageToDisk(int virtualPageNumber)
     fclose(fptr);
 
     // set page to in disk
-    page.inHeap = false;
-    page.pageNumberInDisk = virtualPageNumber;
+    page->inHeap = false;
+    page->pageNumberInDisk = virtualPageNumber;
 }
 
 /// @brief Moves the virtual page from disk to heap in the specified page in heap.
@@ -107,7 +114,7 @@ void movePageToDisk(int virtualPageNumber)
 /// @param heapPageAvailable the empty page in the heap where the page can be moved.
 void movePageToHeap(int virtualPageNumber, int heapPageAvailable)
 {
-    t_VirtualPageTableEntry page = virtualPageTable[virtualPageNumber];
+    t_VirtualPageTableEntry *page = &(virtualPageTable[virtualPageNumber]);
 
     FILE *fptr = NULL;
 
@@ -134,8 +141,12 @@ void movePageToHeap(int virtualPageNumber, int heapPageAvailable)
     }
 
     // set page to in heap
-    page.inHeap = true;
-    page.pageNumberInHeap = heapPageAvailable;
+    page->inHeap = true;
+    page->pageNumberInHeap = heapPageAvailable;
+    struct timeval t;
+    gettimeofday(&t, NULL);
+
+    page->lastAccessed = t;
 }
 
 /// @brief Finds the first page in the heap that is vacant.
@@ -160,17 +171,25 @@ int pm_malloc(int size, char *name, char *type)
 {
     printf("MALLOC: malloc started for size %d\n", size);
 
+    printf("MALLOC: sanity checks started\n");
     if (size > PAGE_SIZE)
     {
         printf("\nERROR: malloc not allowed for size greater than page size.\n");
-        exit(1);
+        return -1;
     }
+
+    printf("MALLOC: sanity checks complete\n");
 
     // Mutex acquired for allocating memory in the heap
     pthread_mutex_lock(&heap_access_mutex);
 
+    printf("MALLOC: mutex acquired\n");
+
     int pagesInHeap = 0;
-    time_t oldestPageTime = MAX_TIME;
+
+    struct timeval oldestPageTime;
+    gettimeofday(&oldestPageTime, NULL);
+
     int oldestVirtualPageNumber = 0;
     int oldestHeapPageNumber = 0;
     int virtualPageAvailable = -1;
@@ -180,26 +199,28 @@ int pm_malloc(int size, char *name, char *type)
     // iterate through entire virtual page table
     for (int i = 0; i < (2 * HEAP_SIZE_IN_MEGA_BYTES * 256); i++)
     {
+        t_VirtualPageTableEntry *page = &(virtualPageTable[i]);
         // printf("MALLOC: iteration: %d\n", i);
         // current page is not available in virtualPageTable
-        if (virtualPageTable[i].isValid)
+        if (page->isValid)
         {
-            printf("MALLOC: page %d not available in virtual page table\n", i);
+            // printf("MALLOC: page %d not available in virtual page table\n", i);
 
             // increment pages count in heap
-            if (virtualPageTable[i].inHeap)
+            if (page->inHeap)
             {
-                printf("MALLOC: incrementing pages found so far\n");
+                // printf("MALLOC: incrementing pages found so far\n");
                 pagesInHeap++;
 
                 // set oldest page to current page if this page is older than oldest page so far
-                if (difftime(virtualPageTable[i].lastAccessed, oldestPageTime) > 0)
+                if (oldestPageTime.tv_sec - page->lastAccessed.tv_sec > 0 ||
+                    (oldestPageTime.tv_sec == page->lastAccessed.tv_sec && oldestPageTime.tv_usec - page->lastAccessed.tv_usec > 0))
                 {
-                    printf("MALLOC: older page found\n");
+                    printf("MALLOC: older page found %d\n", i);
 
                     oldestVirtualPageNumber = i;
-                    oldestPageTime = virtualPageTable[i].lastAccessed;
-                    oldestHeapPageNumber = virtualPageTable[i].pageNumberInHeap;
+                    oldestPageTime = page->lastAccessed;
+                    oldestHeapPageNumber = page->pageNumberInHeap;
                 }
             }
         }
@@ -229,6 +250,8 @@ int pm_malloc(int size, char *name, char *type)
 
         pthread_mutex_unlock(&heap_access_mutex);
 
+        printf("MALLOC: mutex released\n");
+
         printf("MALLOC: malloc ended for heap not full %d\n\n", size);
         return virtualPageAvailable;
     }
@@ -236,6 +259,9 @@ int pm_malloc(int size, char *name, char *type)
     // virtualPageTable is full
     if (virtualPageAvailable == -1)
     {
+        pthread_mutex_unlock(&heap_access_mutex);
+        printf("MALLOC: mutex released\n");
+        printf("ERROR: no more pages available in the memory heap.\n");
         return -1;
     }
 
@@ -252,6 +278,8 @@ int pm_malloc(int size, char *name, char *type)
     printf("MALLOC: creation of page complete after page swap\n");
 
     pthread_mutex_unlock(&heap_access_mutex);
+
+    printf("MALLOC: mutex released\n");
 
     printf("MALLOC: malloc ended with heap full %d\n\n", size);
 
@@ -272,11 +300,12 @@ void *pm_access(int pageNumber)
         exit(1);
     }
 
-    if (!virtualPageTable[pageNumber].isValid)
+    t_VirtualPageTableEntry *page = &(virtualPageTable[pageNumber]);
+
+    if (!page->isValid)
     {
         printf("\nERROR: page does not exist!\n");
         return NULL;
-        // exit(1);
     }
 
     printf("ACCESS: sanity checks complete\n");
@@ -284,14 +313,19 @@ void *pm_access(int pageNumber)
     // NOTE: page replacement algorithm: Least Recently Used
 
     // get page into heap if it is in disk
-    if (!virtualPageTable[pageNumber].inHeap)
+    if (!page->inHeap)
     {
         printf("ACCESS: requested page is in disk, need to get it into heap\n");
         pthread_mutex_lock(&heap_access_mutex);
 
+        printf("ACCESS: mutex acquired\n");
+
         // find oldest page in heap to be moved to disk
         int pagesInHeap = 0;
-        time_t oldestPageTime = MAX_TIME;
+
+        struct timeval oldestPageTime;
+        gettimeofday(&oldestPageTime, NULL);
+
         int oldestVirtualPageNumber = 0;
         int oldestHeapPageNumber = 0;
         int virtualPageAvailable = -1;
@@ -299,20 +333,23 @@ void *pm_access(int pageNumber)
         printf("ACCESS: iteration through virtual page table started\n");
         for (int i = 0; i < (2 * HEAP_SIZE_IN_MEGA_BYTES * 256); i++)
         {
+            t_VirtualPageTableEntry *cpage = &(virtualPageTable[i]);
+
             // current page is not available in virtualPageTable
-            if (virtualPageTable[i].isValid)
+            if (cpage->isValid)
             {
                 printf("ACCESS: incrementing pages found so far\n");
                 pagesInHeap++;
 
                 // set oldest page to current page if this page is older than oldest page so far
-                if (difftime(virtualPageTable[i].lastAccessed, oldestPageTime) > 0)
+                if (oldestPageTime.tv_sec - cpage->lastAccessed.tv_sec > 0 ||
+                    (oldestPageTime.tv_sec - cpage->lastAccessed.tv_sec == 0 && oldestPageTime.tv_usec - cpage->lastAccessed.tv_usec > 0))
                 {
                     printf("ACCESS: older page found\n");
 
                     oldestVirtualPageNumber = i;
-                    oldestPageTime = virtualPageTable[i].lastAccessed;
-                    oldestHeapPageNumber = virtualPageTable[i].pageNumberInHeap;
+                    oldestPageTime = cpage->lastAccessed;
+                    oldestHeapPageNumber = cpage->pageNumberInHeap;
                 }
 
                 continue;
@@ -351,11 +388,15 @@ void *pm_access(int pageNumber)
         }
 
         pthread_mutex_unlock(&heap_access_mutex);
+
+        printf("ACCESS: mutex released\n");
     }
 
     printf("ACCESS: page ready.\n");
     // set last accessed of the requested page to now
-    time_t t = time(0);
+    struct timeval t;
+    gettimeofday(&t, NULL);
+
     virtualPageTable[pageNumber].lastAccessed = t;
 
     // return page start address in heap
