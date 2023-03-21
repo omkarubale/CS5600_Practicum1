@@ -414,11 +414,11 @@ void *pm_access(int pageNumber)
     struct timeval t;
     gettimeofday(&t, NULL);
 
-    virtualPageTable[pageNumber].lastAccessed = t;
+    page->lastAccessed = t;
 
     // return page start address in heap
     printf("ACCESS: building resultant pointer for requested page's start address started\n");
-    int heapPageNumber = virtualPageTable[pageNumber].pageNumberInHeap;
+    int heapPageNumber = page->pageNumberInHeap;
     void *result = pm_heap + (PAGE_SIZE * heapPageNumber);
     printf("ACCESS: building resultant pointer for requested page's start address complete\n\n");
 
@@ -434,13 +434,10 @@ void pm_free(int pageNumber)
     // Mutex acquired for allocating memory in the heap
     pthread_mutex_lock(&heap_access_mutex);
 
-    // destroy Page object in virtualPageTable array
-    // printf("FREE: destroy page object\n");
-    // t_VirtualPageTableEntry *pageObjectToBeDeleted = ((t_VirtualPageTableEntry *)virtualPageTable[pageNumber]);
-    // free(pageObjectToBeDeleted);
-
     printf("FREE: set page to available in virtual page table and pageUsage table\n");
-    virtualPageTable[pageNumber].isValid = false;
+    t_VirtualPageTableEntry *page = &(virtualPageTable[pageNumber]);
+
+    page->isValid = false;
     heapUsage[pageNumber] = 0;
 
     printf("FREE: page successfully marked as not available\n");

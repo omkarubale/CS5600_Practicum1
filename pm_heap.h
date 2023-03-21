@@ -6,7 +6,6 @@
  *
  * For documentation, Doxygen commenting has been used for better readability in
  * IDEs like VS Code.
- * Ujwal ahaha
  */
 
 #include <stdbool.h>
