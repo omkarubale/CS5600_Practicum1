@@ -16,6 +16,9 @@
 #include <time.h>
 #include <errno.h>
 #include <limits.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "pm_heap.h"
 
 char pm_heap[HEAP_SIZE_IN_MEGA_BYTES * PAGE_SIZE * 256];
@@ -42,6 +45,13 @@ void pm_init()
     memset(pm_heap, '0', sizeof(HEAP_SIZE_IN_MEGA_BYTES * PAGE_SIZE * 256));
     memset(heapUsage, 0, sizeof(HEAP_SIZE_IN_MEGA_BYTES * 256));
     memset(virtualPageTable, NULL, 2 * HEAP_SIZE_IN_MEGA_BYTES * 256 * sizeof(t_VirtualPageTableEntry));
+
+    struct stat st = {0};
+
+    if (stat("./pages", &st) == -1)
+    {
+        mkdir("./pages", 0700);
+    }
 
     printf("init complete\n\n");
 }
